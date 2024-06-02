@@ -67,54 +67,59 @@ def plot_most_common_words(texts, n_words=10):
 # Streamlit UI
 st.title("Aplikasi Analisis Sentimen Scentplus")
 
-# File uploader
-uploaded_file = st.file_uploader("Unggah file", type=["xlsx", "csv"])
+# File uploader for Excel files
+uploaded_file_predict = st.file_uploader("Unggah file Excel untuk prediksi sentimen", type=["xlsx"])
 
-if uploaded_file is not None:
-    if uploaded_file.type == 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':  # Excel file
-        # Read the Excel file
-        df = pd.read_excel(uploaded_file)
-        # Check if 'Text' column exists in the uploaded file
-        if 'Text' in df.columns:
-            # Initialize TF-IDF Vectorizer and fit_transform on the text data
-            X = df['Text'].apply(clean_text)
-            X_tfidf = tfidf_vectorizer.transform(X)
-            # Perform predictions
-            df['Predicted'] = logreg_model.predict(X_tfidf)
-            # Show the dataframe with predictions
-            st.write(df)
-            # Convert dataframe to CSV file
-            @st.cache
-            def convert_df_to_csv(df):
-                output = BytesIO()
-                df.to_csv(output, index=False)
-                processed_data = output.getvalue()
-                return processed_data
-            # Create a download button
-            st.download_button(
-                label="Unduh file dengan prediksi",
-                data=convert_df_to_csv(df),
-                file_name="prediksi_sentimen.csv",
-                mime="text/csv"
-            )
-        else:
-            st.error("File Excel harus memiliki kolom 'Text'.")
-    elif uploaded_file.type == 'text/csv':  # CSV file
-        # Read the CSV file
-        df = pd.read_csv(uploaded_file)
-        # Check if 'Text' column exists in the uploaded file
-        if 'Text' in df.columns:
-            # Perform sentiment analysis
-            df['Predicted'] = df['Text'].apply(classify_text)
-            # Calculate metrics
-            accuracy, precision, recall = calculate_metrics(df['Human'], df['Predicted'])
-            # Show metrics
-            st.write(f"Akurasi: {accuracy}")
-            st.write(f"Presisi: {precision}")
-            st.write(f"Recall: {recall}")
-            # Plot most common words
-            plot_most_common_words(df['Text'])
-        else:
-            st.error("File CSV harus memiliki kolom 'Text'.")
+if uploaded_file_predict is not None:
+    # Read the Excel file
+    df_predict = pd.read_excel(uploaded_file_predict)
+    
+    # Check if 'Text' column exists in the uploaded file
+    if 'Text' in df_predict.columns:
+        # Initialize TF-IDF Vectorizer and fit_transform on the text data
+        X_predict = df_predict['Text'].apply(clean_text)
+        X_tfidf_predict = tfidf_vectorizer.transform(X_predict)
+        
+        # Perform predictions
+        df_predict['Predicted'] = logreg_model.predict(X_tfidf_predict)
+        
+        # Show the dataframe with predictions
+        st.write(df_predict)
+        
+        # Convert dataframe to CSV file
+        @st.cache
+        def convert_df_to_csv(df):
+            output = BytesIO()
+            df.to_csv(output, index=False)
+            processed_data = output.getvalue()
+            return processed_data
+        
+        # Create a download button
+        st.download_button(
+            label="Unduh file dengan prediksi",
+            data=convert_df_to_csv(df_predict),
+            file_name="prediksi_sentimen.csv",
+            mime="text/csv"
+        )
     else:
-        st.error("Format file tidak didukung.")
+        st.error("File Excel harus memiliki kolom 'Text'.")
+
+# File uploader for CSV files
+uploaded_file_analyze = st.file_uploader("Unggah file CSV untuk analisis hasil prediksi", type=["csv"])
+
+if uploaded_file_analyze is not None:
+    # Read the CSV file
+    df_analyze = pd.read_csv(uploaded_file_analyze)
+    
+    # Check if 'Predicted' column exists in the uploaded file
+    if 'Predicted' in df_analyze.columns:
+        # Calculate metrics
+        accuracy, precision, recall = calculate_metrics(df_analyze['Human'], df_analyze['Predicted'])
+        # Show metrics
+        st.write(f"Akurasi: {accuracy}")
+        st.write(f"Presisi: {precision}")
+        st.write(f"Recall: {recall}")
+        # Plot most common words
+        plot_most_common_words(df_analyze['Text'])
+    else:
+        st.error("File CSV harus memiliki kolom 'Predicted'.")
