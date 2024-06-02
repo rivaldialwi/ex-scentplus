@@ -67,7 +67,7 @@ def plot_most_common_words(texts, n_words=10):
 # Streamlit UI
 st.title("Aplikasi Analisis Sentimen Scentplus")
 
-# File uploader for Excel files
+# File uploader for Excel files for prediction
 uploaded_file_predict = st.file_uploader("Unggah file Excel untuk prediksi sentimen", type=["xlsx"])
 
 if uploaded_file_predict is not None:
@@ -81,7 +81,7 @@ if uploaded_file_predict is not None:
         X_tfidf_predict = tfidf_vectorizer.transform(X_predict)
         
         # Perform predictions
-        df_predict['Predicted'] = logreg_model.predict(X_tfidf_predict)
+        df_predict['Human'] = logreg_model.predict(X_tfidf_predict)
         
         # Show the dataframe with predictions
         st.write(df_predict)
@@ -94,7 +94,7 @@ if uploaded_file_predict is not None:
             processed_data = output.getvalue()
             return processed_data
         
-        # Create a download button
+        # Create a download button for the Human CSV file
         st.download_button(
             label="Unduh file dengan prediksi",
             data=convert_df_to_csv(df_predict),
@@ -104,22 +104,24 @@ if uploaded_file_predict is not None:
     else:
         st.error("File Excel harus memiliki kolom 'Text'.")
 
-# File uploader for CSV files
+# File uploader for CSV files for analysis
 uploaded_file_analyze = st.file_uploader("Unggah file CSV untuk analisis hasil prediksi", type=["csv"])
 
 if uploaded_file_analyze is not None:
     # Read the CSV file
     df_analyze = pd.read_csv(uploaded_file_analyze)
     
-    # Check if 'Predicted' column exists in the uploaded file
-    if 'Predicted' in df_analyze.columns:
+    # Check if 'Human' column exists in the uploaded file
+    if 'Human' in df_analyze.columns:
         # Calculate metrics
-        accuracy, precision, recall = calculate_metrics(df_analyze['Human'], df_analyze['Predicted'])
+        accuracy, precision, recall = calculate_metrics(df_analyze['Human'], df_analyze['Human'])
+        
         # Show metrics
         st.write(f"Akurasi: {accuracy}")
         st.write(f"Presisi: {precision}")
         st.write(f"Recall: {recall}")
+        
         # Plot most common words
         plot_most_common_words(df_analyze['Text'])
     else:
-        st.error("File CSV harus memiliki kolom 'Predicted'.")
+        st.error("File CSV harus memiliki kolom 'Human'.")
