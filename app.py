@@ -62,22 +62,20 @@ if uploaded_file is not None:
         # Show the dataframe with predictions
         st.write(df)
         
-        # Convert dataframe to Excel file
-        @st.cache_data
-        def convert_df_to_excel(df):
+        # Convert dataframe to CSV file
+        @st.cache
+        def convert_df_to_csv(df):
             output = BytesIO()
-            writer = pd.ExcelWriter(output, engine='openpyxl')
-            df.to_excel(writer, index=False, sheet_name='Sheet1')
-            writer.save()
+            df.to_csv(output, index=False)
             processed_data = output.getvalue()
             return processed_data
         
         # Create a download button
         st.download_button(
             label="Unduh file dengan prediksi",
-            data=convert_df_to_excel(df),
-            file_name="prediksi_sentimen.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            data=convert_df_to_csv(df),
+            file_name="prediksi_sentimen.csv",
+            mime="text/csv"
         )
     else:
         st.error("File Excel harus memiliki kolom 'Text'.")
