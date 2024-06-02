@@ -5,7 +5,6 @@ import nltk
 from Sastrawi.Stemmer.StemmerFactory import StemmerFactory
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
-from sklearn.feature_extraction.text import TfidfVectorizer
 from io import BytesIO
 
 # Fungsi untuk mengunduh resource NLTK secara senyap
@@ -16,11 +15,9 @@ def download_nltk_resources():
 # Panggil fungsi unduh NLTK resource di awal
 download_nltk_resources()
 
-# Membaca model yang sudah dilatih
+# Membaca model yang sudah dilatih dan TF-IDF Vectorizer
 logreg_model = joblib.load("model100.pkl")
-
-# Inisialisasi objek TF-IDF Vectorizer
-tfidf_vectorizer = TfidfVectorizer()
+tfidf_vectorizer = joblib.load("tfidf_vectorizer.pkl")
 
 # Fungsi untuk membersihkan teks
 def clean_text(text):
@@ -57,7 +54,7 @@ if uploaded_file is not None:
     if 'Text' in df.columns:
         # Initialize TF-IDF Vectorizer and fit_transform on the text data
         X = df['Text'].apply(clean_text)
-        X_tfidf = tfidf_vectorizer.fit_transform(X)
+        X_tfidf = tfidf_vectorizer.transform(X)
         
         # Perform predictions
         df['Human'] = logreg_model.predict(X_tfidf)
