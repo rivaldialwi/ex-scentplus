@@ -116,8 +116,9 @@ if uploaded_file_csv is not None:
         st.bar_chart(sentiment_counts)
         
         # Word Cloud untuk setiap sentimen
-        for sentiment in df['Predicted_Sentiment'].unique():
-            text = ' '.join(df[df['Predicted_Sentiment'] == sentiment]['Cleaned_Text'])
-            create_wordcloud(text, f'Word Cloud untuk Sentimen {sentiment}')
+        for sentiment in ['Positif', 'Netral', 'Negatif']:
+            if sentiment in df['Predicted_Sentiment'].unique():
+                text = ' '.join(df[df['Predicted_Sentiment'] == sentiment]['Cleaned_Text'])
+                create_wordcloud(text, f'Word Cloud untuk Sentimen {sentiment}')
     else:
         st.error("File CSV harus memiliki kolom 'Text' dan 'Human'.")
