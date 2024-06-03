@@ -41,7 +41,7 @@ def classify_text(input_text):
     return predicted_label
 
 # Fungsi untuk mengonversi dataframe ke file CSV
-@st.cache
+@st.cache_data
 def convert_df_to_csv(df):
     output = BytesIO()
     df.to_csv(output, index=False)
@@ -51,11 +51,11 @@ def convert_df_to_csv(df):
 # Fungsi untuk membuat word cloud
 def create_wordcloud(text, title):
     wordcloud = WordCloud(width=800, height=400, background_color='white').generate(text)
-    plt.figure(figsize=(10, 5))
-    plt.imshow(wordcloud, interpolation='bilinear')
-    plt.title(title)
-    plt.axis('off')
-    plt.show()
+    fig, ax = plt.subplots(figsize=(10, 5))
+    ax.imshow(wordcloud, interpolation='bilinear')
+    ax.set_title(title, fontsize=20)
+    ax.axis('off')
+    st.pyplot(fig)
 
 # Streamlit UI
 st.title("Aplikasi Analisis Sentimen Scentplus")
@@ -103,14 +103,13 @@ if uploaded_file_csv is not None:
         st.write(df)
         
         # Menghitung metrik evaluasi
-        if 'Human' in df.columns:
-            accuracy = accuracy_score(df['Human'], df['Predicted_Sentiment'])
-            precision = precision_score(df['Human'], df['Predicted_Sentiment'], average='weighted', zero_division=1)
-            recall = recall_score(df['Human'], df['Predicted_Sentiment'], average='weighted', zero_division=1)
-            
-            st.write("Akurasi:", accuracy)
-            st.write("Presisi:", precision)
-            st.write("Recall:", recall)
+        accuracy = accuracy_score(df['Human'], df['Predicted_Sentiment'])
+        precision = precision_score(df['Human'], df['Predicted_Sentiment'], average='weighted', zero_division=1)
+        recall = recall_score(df['Human'], df['Predicted_Sentiment'], average='weighted', zero_division=1)
+        
+        st.write("Akurasi:", accuracy)
+        st.write("Presisi:", precision)
+        st.write("Recall:", recall)
         
         # Plot jumlah sentimen
         sentiment_counts = df['Predicted_Sentiment'].value_counts()
