@@ -8,6 +8,7 @@ from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
 from io import BytesIO
 from wordcloud import WordCloud
+from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, precision_score, recall_score
 
 # Fungsi untuk mengunduh resource NLTK secara senyap
@@ -105,22 +106,24 @@ if uploaded_file is not None:
             file_name="prediksi_sentimen.csv",
             mime="text/csv"
         )
+
+        # Evaluasi model
+        st.header("Evaluasi Model")
+        if 'Cleaned_Text' in df.columns and 'Human' in df.columns:
+            X_train, X_test, y_train, y_test = train_test_split(df['Cleaned_Text'], df['Human'], test_size=0.2, random_state=42)
+            X_train_tfidf = tfidf_vectorizer.transform(X_train)
+            X_test_tfidf = tfidf_vectorizer.transform(X_test)
+
+            y_pred = logreg_model.predict(X_test_tfidf)
+
+            accuracy = accuracy_score(y_test, y_pred)
+            precision = precision_score(y_test, y_pred, average='weighted', zero_division=1)
+            recall = recall_score(y_test, y_pred, average='weighted', zero_division=1)
+
+            st.write(f"Akurasi model regresi logistik multinomial: {accuracy:.2f}")
+            st.write(f"Presisi model regresi logistik multinomial: {precision:.2f}")
+            st.write(f"Recall model regresi logistik multinomial: {recall:.2f}")
+        else:
+            st.error("Kolom 'Cleaned_Text' atau 'Human' tidak ditemukan dalam DataFrame.")
     else:
         st.error("File harus memiliki kolom 'Text'.")
-
-# Evaluasi model
-st.header("Evaluasi Model")
-
-X_train, X_test, y_train, y_test = train_test_split(df['Cleaned_Text'], df['Human'], test_size=0.2, random_state=42)
-X_train_tfidf = tfidf_vectorizer.fit_transform(X_train)
-X_test_tfidf = tfidf_vectorizer.transform(X_test)
-
-y_pred = logreg_model.predict(X_test_tfidf)
-
-accuracy = accuracy_score(y_test, y_pred)
-precision = precision_score(y_test, y_pred, average='weighted', zero_division=1)
-recall = recall_score(y_test, y_pred, average='weighted', zero_division=1)
-
-st.write(f"Akurasi model regresi logistik multinomial: {accuracy:.2f}")
-st.write(f"Presisi model regresi logistik multinomial: {precision:.2f}")
-st.write(f"Recall model regresi logistik multinomial: {recall:.2f}")
