@@ -6,6 +6,9 @@ from Sastrawi.Stemmer.StemmerFactory import StemmerFactory
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
 from io import BytesIO
+import matplotlib.pyplot as plt
+from sklearn.metrics import accuracy_score, precision_score, recall_score
+from wordcloud import WordCloud
 
 # Fungsi untuk mengunduh resource NLTK secara senyap
 def download_nltk_resources():
@@ -40,29 +43,37 @@ def classify_text(input_text):
     predicted_label = logreg_model.predict(input_vector)[0]
     return predicted_label
 
+# Fungsi untuk menampilkan Word Cloud
+def generate_wordcloud(data, title):
+    wordcloud = WordCloud(width=300, height=200, background_color='white').generate(' '.join(data))
+    plt.figure(figsize=(10, 5))
+    plt.imshow(wordcloud, interpolation='bilinear')
+    plt.title(title)
+    plt.axis('off')
+    st.pyplot(plt)
+
 # Streamlit UI
 st.title("Aplikasi Analisis Sentimen Scentplus")
 
-# File uploader for Excel files
-uploaded_file = st.file_uploader("Unggah file Excel", type=["xlsx"])
+# File uploader for Excel and CSV files
+uploaded_file = st.file_uploader("Unggah file Excel atau CSV", type=["xlsx", "csv"])
 
 if uploaded_file is not None:
-    # Read the Excel file
-    df = pd.read_excel(uploaded_file)
+    if uploaded_file.name.endswith('.xlsx'):
+        df = pd.read_excel(uploaded_file)
+    else:
+        df = pd.read_csv(uploaded_file)
     
-    # Check if 'Text' column exists in the uploaded file
     if 'Text' in df.columns:
-        # Initialize TF-IDF Vectorizer and fit_transform on the text data
         X = df['Text'].apply(clean_text)
         X_tfidf = tfidf_vectorizer.transform(X)
         
-        # Perform predictions
         df['Human'] = logreg_model.predict(X_tfidf)
         
-        # Show the dataframe with predictions
+        # Display the dataframe with predictions
         st.write(df)
         
-        # Convert dataframe to CSV file
+        # Convert dataframe to CSV file for download
         @st.cache
         def convert_df_to_csv(df):
             output = BytesIO()
@@ -70,12 +81,34 @@ if uploaded_file is not None:
             processed_data = output.getvalue()
             return processed_data
         
-        # Create a download button
         st.download_button(
             label="Unduh file dengan prediksi",
             data=convert_df_to_csv(df),
             file_name="prediksi_sentimen.csv",
             mime="text/csv"
         )
+
+        # Display sentiment distribution bar chart
+        st.subheader("Distribusi Sentimen")
+        sentiment_counts = df['Human'].value_counts()
+        st.bar_chart(sentiment_counts)
+
+        # Display Word Clouds for each sentiment
+        st.subheader("Kata-Kata yang Sering Muncul")
+        for sentiment in df['Human'].unique():
+            generate_wordcloud(df[df['Human'] == sentiment]['Text'], f'Word Cloud untuk Sentimen {sentiment}')
+
+        # Display accuracy, precision, and recall
+        y_true = df['Human']
+        y_pred = logreg_model.predict(X_tfidf)
+        
+        accuracy = accuracy_score(y_true, y_pred)
+        precision = precision_score(y_true, y_pred, average='weighted', zero_division=1)
+        recall = recall_score(y_true, y_pred, average='weighted', zero_division=1)
+        
+        st.subheader("Metrik Evaluasi")
+        st.write(f"Akurasi: {accuracy:.2f}")
+        st.write(f"Presisi: {precision:.2f}")
+        st.write(f"Recall: {recall:.2f}")
     else:
-        st.error("File Excel harus memiliki kolom 'Text'.")
+        st.error("File harus memiliki kolom 'Text'.")
