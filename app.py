@@ -6,6 +6,9 @@ from Sastrawi.Stemmer.StemmerFactory import StemmerFactory
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
 from io import BytesIO
+import matplotlib.pyplot as plt
+from wordcloud import WordCloud
+from sklearn.metrics import accuracy_score, precision_score, recall_score
 
 # Fungsi untuk mengunduh resource NLTK secara senyap
 def download_nltk_resources():
@@ -32,45 +35,46 @@ def clean_text(text):
 
 # Fungsi untuk melakukan klasifikasi teks
 def classify_text(input_text):
-    # Membersihkan teks input
     cleaned_text = clean_text(input_text)
-    # Mengubah teks input menjadi vektor fitur menggunakan TF-IDF
     input_vector = tfidf_vectorizer.transform([cleaned_text])
-    # Melakukan prediksi menggunakan model
     predicted_label = logreg_model.predict(input_vector)[0]
     return predicted_label
+
+# Fungsi untuk mengonversi dataframe ke file CSV
+@st.cache
+def convert_df_to_csv(df):
+    output = BytesIO()
+    df.to_csv(output, index=False)
+    processed_data = output.getvalue()
+    return processed_data
+
+# Fungsi untuk membuat word cloud
+def create_wordcloud(text, title):
+    wordcloud = WordCloud(width=800, height=400, background_color='white').generate(text)
+    plt.figure(figsize=(10, 5))
+    plt.imshow(wordcloud, interpolation='bilinear')
+    plt.title(title)
+    plt.axis('off')
+    plt.show()
 
 # Streamlit UI
 st.title("Aplikasi Analisis Sentimen Scentplus")
 
 # File uploader for Excel files
-uploaded_file = st.file_uploader("Unggah file Excel", type=["xlsx"])
+st.header("Prediksi Sentimen dari File Excel")
+uploaded_file_excel = st.file_uploader("Unggah file Excel", type=["xlsx"])
 
-if uploaded_file is not None:
-    # Read the Excel file
-    df = pd.read_excel(uploaded_file)
+if uploaded_file_excel is not None:
+    df = pd.read_excel(uploaded_file_excel)
     
-    # Check if 'Text' column exists in the uploaded file
     if 'Text' in df.columns:
-        # Initialize TF-IDF Vectorizer and fit_transform on the text data
         X = df['Text'].apply(clean_text)
         X_tfidf = tfidf_vectorizer.transform(X)
         
-        # Perform predictions
         df['Human'] = logreg_model.predict(X_tfidf)
         
-        # Show the dataframe with predictions
         st.write(df)
         
-        # Convert dataframe to CSV file
-        @st.cache
-        def convert_df_to_csv(df):
-            output = BytesIO()
-            df.to_csv(output, index=False)
-            processed_data = output.getvalue()
-            return processed_data
-        
-        # Create a download button
         st.download_button(
             label="Unduh file dengan prediksi",
             data=convert_df_to_csv(df),
@@ -79,3 +83,42 @@ if uploaded_file is not None:
         )
     else:
         st.error("File Excel harus memiliki kolom 'Text'.")
+
+# File uploader for CSV files
+st.header("Analisis Sentimen dari File CSV")
+uploaded_file_csv = st.file_uploader("Unggah file CSV", type=["csv"])
+
+if uploaded_file_csv is not None:
+    df = pd.read_csv(uploaded_file_csv)
+    
+    if 'Text' in df.columns and 'Human' in df.columns:
+        df['Cleaned_Text'] = df['Text'].apply(clean_text)
+        X = df['Cleaned_Text']
+        X_tfidf = tfidf_vectorizer.transform(X)
+        
+        y_pred = logreg_model.predict(X_tfidf)
+        
+        df['Predicted_Sentiment'] = y_pred
+        
+        st.write(df)
+        
+        # Menghitung metrik evaluasi
+        if 'Human' in df.columns:
+            accuracy = accuracy_score(df['Human'], df['Predicted_Sentiment'])
+            precision = precision_score(df['Human'], df['Predicted_Sentiment'], average='weighted', zero_division=1)
+            recall = recall_score(df['Human'], df['Predicted_Sentiment'], average='weighted', zero_division=1)
+            
+            st.write("Akurasi:", accuracy)
+            st.write("Presisi:", precision)
+            st.write("Recall:", recall)
+        
+        # Plot jumlah sentimen
+        sentiment_counts = df['Predicted_Sentiment'].value_counts()
+        st.bar_chart(sentiment_counts)
+        
+        # Word Cloud untuk setiap sentimen
+        for sentiment in df['Predicted_Sentiment'].unique():
+            text = ' '.join(df[df['Predicted_Sentiment'] == sentiment]['Cleaned_Text'])
+            create_wordcloud(text, f'Word Cloud untuk Sentimen {sentiment}')
+    else:
+        st.error("File CSV harus memiliki kolom 'Text' dan 'Human'.")
