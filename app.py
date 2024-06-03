@@ -33,24 +33,22 @@ def clean_text(text):
     stemmed_words = [stemmer.stem(word) for word in cleaned_words]  # Stemming
     return " ".join(stemmed_words)
 
-# Fungsi untuk melakukan klasifikasi teks
-def classify_text(input_text):
-    # Membersihkan teks input
-    cleaned_text = clean_text(input_text)
-    # Mengubah teks input menjadi vektor fitur menggunakan TF-IDF
-    input_vector = tfidf_vectorizer.transform([cleaned_text])
-    # Melakukan prediksi menggunakan model
-    predicted_label = logreg_model.predict(input_vector)[0]
-    return predicted_label
-
 # Fungsi untuk menampilkan Word Cloud
 def generate_wordcloud(data, title):
-    wordcloud = WordCloud(width=300, height=200, background_color='white').generate(' '.join(data))
+    wordcloud = WordCloud(width=800, height=400, background_color='white').generate(' '.join(data))
     plt.figure(figsize=(10, 5))
     plt.imshow(wordcloud, interpolation='bilinear')
     plt.title(title)
     plt.axis('off')
     st.pyplot(plt)
+
+# Fungsi untuk mengonversi DataFrame ke CSV
+@st.cache
+def convert_df_to_csv(df):
+    output = BytesIO()
+    df.to_csv(output, index=False)
+    processed_data = output.getvalue()
+    return processed_data
 
 # Streamlit UI
 st.title("Aplikasi Analisis Sentimen Scentplus")
@@ -65,22 +63,17 @@ if uploaded_file is not None:
         df = pd.read_csv(uploaded_file)
     
     if 'Text' in df.columns:
-        X = df['Text'].apply(clean_text)
-        X_tfidf = tfidf_vectorizer.transform(X)
+        # Membersihkan teks dan mengubah menjadi vektor TF-IDF
+        X_clean = df['Text'].apply(clean_text)
+        X_tfidf = tfidf_vectorizer.transform(X_clean)
         
+        # Melakukan prediksi
         df['Human'] = logreg_model.predict(X_tfidf)
         
-        # Display the dataframe with predictions
+        # Tampilkan DataFrame dengan prediksi
         st.write(df)
         
-        # Convert dataframe to CSV file for download
-        @st.cache
-        def convert_df_to_csv(df):
-            output = BytesIO()
-            df.to_csv(output, index=False)
-            processed_data = output.getvalue()
-            return processed_data
-        
+        # Tampilkan tombol unduh
         st.download_button(
             label="Unduh file dengan prediksi",
             data=convert_df_to_csv(df),
@@ -88,17 +81,18 @@ if uploaded_file is not None:
             mime="text/csv"
         )
 
-        # Display sentiment distribution bar chart
+        # Menampilkan distribusi sentimen
         st.subheader("Distribusi Sentimen")
         sentiment_counts = df['Human'].value_counts()
         st.bar_chart(sentiment_counts)
 
-        # Display Word Clouds for each sentiment
+        # Menampilkan Word Clouds untuk setiap sentimen
         st.subheader("Kata-Kata yang Sering Muncul")
         for sentiment in df['Human'].unique():
-            generate_wordcloud(df[df['Human'] == sentiment]['Text'], f'Word Cloud untuk Sentimen {sentiment}')
+            sentiment_texts = df[df['Human'] == sentiment]['Text']
+            generate_wordcloud(sentiment_texts, f'Word Cloud untuk Sentimen {sentiment}')
 
-        # Display accuracy, precision, and recall
+        # Evaluasi model menggunakan data yang diunggah
         y_true = df['Human']
         y_pred = logreg_model.predict(X_tfidf)
         
