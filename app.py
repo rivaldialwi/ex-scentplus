@@ -6,9 +6,6 @@ from Sastrawi.Stemmer.StemmerFactory import StemmerFactory
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
 from io import BytesIO
-import matplotlib.pyplot as plt
-from sklearn.metrics import accuracy_score, precision_score, recall_score
-from wordcloud import WordCloud
 
 # Fungsi untuk mengunduh resource NLTK secara senyap
 def download_nltk_resources():
@@ -33,76 +30,52 @@ def clean_text(text):
     stemmed_words = [stemmer.stem(word) for word in cleaned_words]  # Stemming
     return " ".join(stemmed_words)
 
-# Fungsi untuk menampilkan Word Cloud
-def generate_wordcloud(data, title):
-    wordcloud = WordCloud(width=800, height=400, background_color='white').generate(' '.join(data))
-    plt.figure(figsize=(10, 5))
-    plt.imshow(wordcloud, interpolation='bilinear')
-    plt.title(title)
-    plt.axis('off')
-    st.pyplot(plt)
-
-# Fungsi untuk mengonversi DataFrame ke CSV
-@st.cache
-def convert_df_to_csv(df):
-    output = BytesIO()
-    df.to_csv(output, index=False)
-    processed_data = output.getvalue()
-    return processed_data
+# Fungsi untuk melakukan klasifikasi teks
+def classify_text(input_text):
+    # Membersihkan teks input
+    cleaned_text = clean_text(input_text)
+    # Mengubah teks input menjadi vektor fitur menggunakan TF-IDF
+    input_vector = tfidf_vectorizer.transform([cleaned_text])
+    # Melakukan prediksi menggunakan model
+    predicted_label = logreg_model.predict(input_vector)[0]
+    return predicted_label
 
 # Streamlit UI
 st.title("Aplikasi Analisis Sentimen Scentplus")
 
-# File uploader for Excel and CSV files
-uploaded_file = st.file_uploader("Unggah file Excel atau CSV", type=["xlsx", "csv"])
+# File uploader for Excel files
+uploaded_file = st.file_uploader("Unggah file Excel", type=["xlsx"])
 
 if uploaded_file is not None:
-    if uploaded_file.name.endswith('.xlsx'):
-        df = pd.read_excel(uploaded_file)
-    else:
-        df = pd.read_csv(uploaded_file)
+    # Read the Excel file
+    df = pd.read_excel(uploaded_file)
     
+    # Check if 'Text' column exists in the uploaded file
     if 'Text' in df.columns:
-        # Membersihkan teks dan mengubah menjadi vektor TF-IDF
-        X_clean = df['Text'].apply(clean_text)
-        X_tfidf = tfidf_vectorizer.transform(X_clean)
+        # Initialize TF-IDF Vectorizer and fit_transform on the text data
+        X = df['Text'].apply(clean_text)
+        X_tfidf = tfidf_vectorizer.transform(X)
         
-        # Melakukan prediksi
+        # Perform predictions
         df['Human'] = logreg_model.predict(X_tfidf)
         
-        # Tampilkan DataFrame dengan prediksi
+        # Show the dataframe with predictions
         st.write(df)
         
-        # Tampilkan tombol unduh
+        # Convert dataframe to CSV file
+        @st.cache
+        def convert_df_to_csv(df):
+            output = BytesIO()
+            df.to_csv(output, index=False)
+            processed_data = output.getvalue()
+            return processed_data
+        
+        # Create a download button
         st.download_button(
             label="Unduh file dengan prediksi",
             data=convert_df_to_csv(df),
             file_name="prediksi_sentimen.csv",
             mime="text/csv"
         )
-
-        # Menampilkan distribusi sentimen
-        st.subheader("Distribusi Sentimen")
-        sentiment_counts = df['Human'].value_counts()
-        st.bar_chart(sentiment_counts)
-
-        # Menampilkan Word Clouds untuk setiap sentimen
-        st.subheader("Kata-Kata yang Sering Muncul")
-        for sentiment in df['Human'].unique():
-            sentiment_texts = df[df['Human'] == sentiment]['Text']
-            generate_wordcloud(sentiment_texts, f'Word Cloud untuk Sentimen {sentiment}')
-
-        # Evaluasi model menggunakan data yang diunggah
-        y_true = df['Human']
-        y_pred = logreg_model.predict(X_tfidf)
-        
-        accuracy = accuracy_score(y_true, y_pred)
-        precision = precision_score(y_true, y_pred, average='weighted', zero_division=1)
-        recall = recall_score(y_true, y_pred, average='weighted', zero_division=1)
-        
-        st.subheader("Metrik Evaluasi")
-        st.write(f"Akurasi: {accuracy:.2f}")
-        st.write(f"Presisi: {precision:.2f}")
-        st.write(f"Recall: {recall:.2f}")
     else:
-        st.error("File harus memiliki kolom 'Text'.")
+        st.error("File Excel harus memiliki kolom 'Text'.")
